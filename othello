@@ -1,0 +1,131 @@
+#!/usr/local/bin/gosh
+
+(use gauche.parseopt)
+(use srfi-1)
+(use srfi-43)
+
+(define (usage)
+  (print)
+  (exit 0))
+
+;;
+;; -11 -10 -9
+;;  -1  __  1
+;;   9  10 11
+;;
+(define-constant all-directions (list -11 -10 -9 -1 1 9 10 11))
+
+;;
+;; pieces
+;;
+(define-constant empty 0)
+(define-constant black 1)
+(define-constant white 2)
+(define-constant outer 3)
+
+;;
+;; pieceから表示用のcharを取得する
+;;
+(define (name-of piece)
+  (ref ".@0?" piece))
+
+;;
+;; opponent(相手)の色を取得する
+;;
+(define (opponent player)
+  (if (= player black)
+      white
+      black))
+
+;;
+;; othelloのボード
+;; オセロは8x8マスなので、有効なマス目は11から88とする
+;; その他のマスは無効なマス
+;;
+(define board (make-vector 100))
+
+;;
+;; boardの指定された場所の値を取得する
+;;
+(define (bref board square)
+  (ref board square))
+
+;;
+;; brefのsetterを登録
+;;
+(set! (setter bref)
+      (^(board square val)
+        (set! (ref board square) val)))
+
+;;
+;; board内で有効なマスのindex
+;;
+(define-constant all-squares
+  (fold-right (^(i acc)
+                ;; 有効なマスであればaccに登録
+                (if (<= 1 (mod i 10) 8)
+                    (cons i acc)
+                    acc))
+              '()
+              (iota (+ 1 (- 88 11)) 11)))
+
+;;
+;; boardの初期状態をセットする
+;;
+(define (initial-board)
+  (let1 board (list->vector (make-list 100 outer))
+    ;; 有効なマスにemptyを配置
+    (dolist (square all-squares)
+      (set! (bref board square) empty))
+    ;; 中央の4マスにwhiteとblackを配置
+    (set! (bref board 44) white) (set! (bref board 45) black)
+    (set! (bref board 54) black) (set! (bref board 55) white)
+    board))
+
+;;
+;; board上にpieceがいくつ存在するか調べる
+;;
+(define (count-piece piece board)
+  (vector-fold (^(i acc x)
+                 (if (= x piece)
+                     (+ acc 1)
+                     acc))
+               0
+               board))
+;;
+;; boardをconsoleに表示する
+;;
+(define (print-board board)
+  ;; 列とヘッダ情報を表示
+  (print "   1 2 3 4 5 6 7 8 ")
+  (dotimes (row 8)
+    (let1 row (+ row 1)
+      (display (* 10 row))(display " ")
+      (dotimes (col 8)
+        (let* ((col (+ col 1))
+               (piece (bref board (+ col (* 10 row)))))
+          (display (name-of piece)))(display " ")))
+    (print))
+  (format #t "[~a=~2a ~a=~2a (~3@d)]"
+          (name-of black)(count-piece black board)
+          (name-of white)(count-piece white board)
+          (count-difference black board))
+  (print))
+
+;;
+;; 相手との差がいくつあるか計算する
+;;
+(define (count-difference player board)
+  (- (count-piece player board)
+     (count-piece (opponent player) board)))
+
+
+
+(define (main args)
+  (let-args (cdr args)
+      ((help "h|help" => usage)
+       (else (opt . _)
+             (print "Unknown option : " opt)
+             (usage))
+       . rest)
+    (print-board (initial-board))))
