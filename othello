@@ -27,7 +27,7 @@
 ;; pieceから表示用のcharを取得する
 ;;
 (define (name-of piece)
-  (ref ".@0?" piece))
+  (ref ".@O?" piece))
 
 ;;
 ;; opponent(相手)の色を取得する
@@ -36,13 +36,6 @@
   (if (= player black)
       white
       black))
-
-;;
-;; othelloのボード
-;; オセロは8x8マスなので、有効なマス目は11から88とする
-;; その他のマスは無効なマス
-;;
-(define board (make-vector 100))
 
 ;;
 ;; boardの指定された場所の値を取得する
@@ -58,21 +51,32 @@
         (set! (ref board square) val)))
 
 ;;
+;; board上の有効なマスかどうか
+;;
+(define (square? index)
+  (and (integer? index)
+       (<= 11 index 88)
+       (<= 1 (mod index 10) 8)))
+
+;;
 ;; board内で有効なマスのindex
 ;;
 (define-constant all-squares
   (fold-right (^(i acc)
                 ;; 有効なマスであればaccに登録
-                (if (<= 1 (mod i 10) 8)
+                (if (square? i)
                     (cons i acc)
                     acc))
               '()
-              (iota (+ 1 (- 88 11)) 11)))
+              (iota 100 1)))
 
 ;;
 ;; boardの初期状態をセットする
 ;;
 (define (initial-board)
+  ;; othelloのボード
+  ;; オセロは8x8マスなので、有効なマス目は11から88とする
+  ;; その他のマスは無効なマス
   (let1 board (list->vector (make-list 100 outer))
     ;; 有効なマスにemptyを配置
     (dolist (square all-squares)
@@ -92,6 +96,7 @@
                      acc))
                0
                board))
+
 ;;
 ;; boardをconsoleに表示する
 ;;
@@ -118,6 +123,31 @@
 (define (count-difference player board)
   (- (count-piece player board)
      (count-piece (opponent player) board)))
+
+;;
+;; boardの有効なマス内かどうか
+;;
+(define (valid? move)
+  (square? move))
+
+;;
+;; コマを置こくことが可能なマスであるかどうか
+;;
+(define (legal? move player board)
+  (and (= (bref board move) empty)
+       (any (pa$ would_flip? move player board)
+            all-directions)))
+
+;;
+;; コマを置いて反転を行う
+;;
+(define (make-move move player board)
+  ;; コマを置く
+  (set! (bref board move) player)
+  ;; コマを置いたことによる反転を行う
+  (dolist (dir all-directions)
+    (make-flips move player board dir))
+  board)
 
 
 
