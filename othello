@@ -105,12 +105,14 @@
   (print "   1 2 3 4 5 6 7 8 ")
   (dotimes (row 8)
     (let1 row (+ row 1)
+      ;; 行ヘッダ
       (display (* 10 row))(display " ")
       (dotimes (col 8)
         (let* ((col (+ col 1))
                (piece (bref board (+ col (* 10 row)))))
           (display (name-of piece)))(display " ")))
     (print))
+  ;; 現在のマスの集計を表示する
   (format #t "[~a=~2a ~a=~2a (~3@d)]"
           (name-of black)(count-piece black board)
           (name-of white)(count-piece white board)
@@ -146,8 +148,67 @@
   (set! (bref board move) player)
   ;; コマを置いたことによる反転を行う
   (dolist (dir all-directions)
-    (make-flips move player board dir))
+    (make-flips! move player board dir))
   board)
+
+;;
+;; moveからdirの方向へbracketerまでplayerで反転を行う
+;;
+(define (make-flips! move player board dir)
+  ;; playerはmoveからdirに向けて反転可能か？
+  ;; 可能であれば反転終端のマスが返る
+  (if-let1 bracketer (would-flip? move player board dir)
+           (let rec ((c (+ move dir)))
+             ;; 反転終端でなければ
+             (unless (= c bracketer)
+               (set! (bref board c) player)
+               (rec (+ c dir))))))
+
+;;
+;; playerはmoveからdirに向けて反転可能か？
+;;
+(define (would-flip? move player board dir)
+  (let1 c (+ move dir)
+    ;; cが敵playerかつ
+    (and (= (bref board c)(opponent player))
+         ;; 反転の終端を取得
+         (find-bracketing-piece (+ c dir) player board dir))))
+
+;;
+;; 反転の終端を探索する
+;;
+(define (find-bracketing-piece square player board dir)
+  (let rec ((square squre))
+    (let1 c (bref board square)
+      (cond
+       ;; 自分のマスであればそこまで
+       ((= c player) square)
+       ;; 敵のマスであれば探索を続ける
+       ((= c (opponent player)) (rec (+ squre dir)))
+       ;; どちらでもなければ反転できない
+       (else #f)))))
+
+;;
+;; gameのメインループ
+;;
+(define (othello bl_strategy wh-strategy
+                 :optional (print? #t))
+  ;; boardを初期化
+  (let1 board (initial-board)
+    (let rec ((player black)(strategy bl-strategy))
+      ;; gameが続けば
+      (when player
+        (get-move strategy player board print)
+        ;; 次のターン
+        (rec (next-to-play board player print?)
+             (if (= player black)
+                 bl-strategy
+                 wh-strategy)))
+      ;; game終了時
+      (when print?
+        (print "The game is over. Final result:")
+        (print-board board))
+      (count-difference black board))))
 
 
 
