@@ -3,10 +3,7 @@
 (use gauche.parseopt)
 (use srfi-1)
 (use srfi-43)
-
-(define (usage)
-  (print)
-  (exit 0))
+(use srfi-27)
 
 ;;
 ;; -11 -10 -9
@@ -42,6 +39,9 @@
 ;;
 (define (bref board square)
   (ref board square))
+
+(define (copy-board board)
+  (vector-copy board))
 
 ;;
 ;; brefのsetterを登録
@@ -137,7 +137,7 @@
 ;;
 (define (legal? move player board)
   (and (= (bref board move) empty)
-       (any (pa$ would_flip? move player board)
+       (any (pa$ would-flip? move player board)
             all-directions)))
 
 ;;
@@ -178,45 +178,133 @@
 ;; 反転の終端を探索する
 ;;
 (define (find-bracketing-piece square player board dir)
-  (let rec ((square squre))
+  (let rec ((square square))
     (let1 c (bref board square)
       (cond
        ;; 自分のマスであればそこまで
        ((= c player) square)
        ;; 敵のマスであれば探索を続ける
-       ((= c (opponent player)) (rec (+ squre dir)))
+       ((= c (opponent player)) (rec (+ square dir)))
        ;; どちらでもなければ反転できない
        (else #f)))))
 
 ;;
 ;; gameのメインループ
 ;;
-(define (othello bl_strategy wh-strategy
+(define (othello bl-strategy wh-strategy
                  :optional (print? #t))
   ;; boardを初期化
   (let1 board (initial-board)
     (let rec ((player black)(strategy bl-strategy))
       ;; gameが続けば
       (when player
-        (get-move strategy player board print)
+        (get-move! strategy player board print)
         ;; 次のターン
         (rec (next-to-play board player print?)
              (if (= player black)
-                 bl-strategy
-                 wh-strategy)))
-      ;; game終了時
+                 wh-strategy
+                 bl-strategy))))
+    ;; game終了時
+    (when print?
+      (print "The game is over. Final result:")
+      (print-board board))
+    (count-difference black board)))
+
+;;
+;; 次のターンへ移行する
+;;
+(define (next-to-play board previous-player print?)
+  (let1 opp (opponent previous-player)
+    (cond
+     ;; 相手のターンに移行
+     ((any-legal-move? opp board) opp)
+     ;; 相手に次の手がなければ再度同じplayerのターン
+     ((any-legal-move? previous-player board)
       (when print?
-        (print "The game is over. Final result:")
-        (print-board board))
-      (count-difference black board))))
+        (print (name-of opp) " hasno moves and must pass.")
+        previous-player))
+     ;; どちらでもなければgame終了
+     (else #f))))
+
+;;
+;; playerに次の手はあるか？
+;;
+(define (any-legal-move? player board)
+  (any (^(move)
+         (legal? move player board))
+       all-squares))
+
+;;
+;;
+;;
+(define (get-move! strategy player board print?)
+  (when print?
+    (print)
+    (print-board board))
+  (let1 move (strategy player (copy-board board))
+    (if (and (valid? move)
+             (legal? move player board))
+        (begin
+          (when print?
+            (print (name-of player)
+                   " moves to "
+                   move
+                   "."))
+          (make-move move player board))
+        (begin
+          (warn "Illegal move: ~d" move)
+          (get-move! strategy player board print?)))))
+
+;; ==========================================================
+
+;;
+;; strategy : human
+;;
+(define (human player board)
+  ;; ignore board
+  (print)
+  (display (name-of player))
+  (display " to move: ")
+  (read))
+
+;;
+;; strategy : random
+;;
+(define (random-strategy player board)
+  (define (random-elt choices)
+    (list-ref choices (random-integer (length choices))))
+  ;; 有効な手を取得する
+  (define (legal-moves player board)
+    (fold (^(move acc)
+            (if (legal? move player board)
+                (cons move acc)
+                acc))
+          '()
+          all-squares))
+  (random-elt (legal-moves player board)))
 
 
+;; ==========================================================
+
+(define (usage)
+  (print)
+  (exit 0))
+
+(define (print-strategies)
+  (print)
+  (exit 0))
 
 (define (main args)
   (let-args (cdr args)
       ((help "h|help" => usage)
+       (list-strategy "l|list" => print-strategies)
+       (first "f|first")
+       (strategy "s|strategy=s")
        (else (opt . _)
              (print "Unknown option : " opt)
              (usage))
        . rest)
-    (print-board (initial-board))))
+    (let* ((enemy-strategy (or strategy random-strategy))
+           (bl-player (if first human enemy-strategy))
+           (wh-player (if first enemy-strategy human)))
+      (othello bl-player wh-player))))
