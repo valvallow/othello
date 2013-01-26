@@ -277,17 +277,6 @@
   (random-elt (legal-moves player board)))
 
 ;;
-;; 有効な手を取得する
-;;
-(define (legal-moves player board)
-  (fold (^(move acc)
-          (if (legal? move player board)
-              (cons move acc)
-              acc))
-        '()
-        all-squares))
-
-;;
 ;; strategy : maximize-difference
 ;;
 (define (maximize-difference player board)
@@ -302,11 +291,28 @@
   ((maximizer count-difference) player board))
 
 
+;;
+;; 有効な手を取得する
+;;
+(define (legal-moves player board)
+  (fold (^(move acc)
+          (if (legal? move player board)
+              (cons move acc)
+              acc))
+        '()
+        all-squares))
+
+;;
+;; 戦略のリスト
+;;
 (define strategies
   `((human . ,human)
-    (random . ,random-strategy )
-    (max-diff . ,maximize-difference)))
+    (random . ,random-strategy)
+    (maximize-difference . ,maximize-difference)))
 
+;;
+;; 戦略のリストから戦略を取得する
+;;
 (define (get-strategy str)
   (and str (assoc-ref strategies (string->symbol str))))
 
@@ -315,11 +321,11 @@
 (define (usage path)
   (let1 cmd (values-ref (decompose-path path) 1)
     (print "usage : " cmd " [options] [args]")
-    (exit 0)))
+    (exit 2)))
 
 (define (print-strategies)
-  (print strategies)
-  (exit 0))
+  (for-each (compose print car) strategies)
+  (exit 2))
 
 (define (main args)
   (let-args (cdr args)
