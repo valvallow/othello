@@ -280,15 +280,39 @@
 ;; strategy : maximize-difference
 ;;
 (define (maximize-difference player board)
-  (define (maximizer eval-fn)
-    (^ (player board)
-       (let* ((moves (legal-moves player board))
-              (scores (map (^(move)
-                             (eval-fn player (make-move move player (copy-board board))))
-                       moves))
-              (best (apply max scores)))
-         (ref moves (list-index (pa$ = best) scores) ))))
   ((maximizer count-difference) player board))
+
+;;
+;; strategy : weighted-squares
+;;
+(define (weighted-squares player board)
+  (define *weights*
+    #(0   0   0  0  0  0  0   0   0 0
+      0 120 -20 20  5  5 20 -20 120 0
+      0 -20 -40 -5 -5 -5 -5 -40 -20 0
+      0  20  -5 15  3  3 15  -5  20 0
+      0   5  -5  3  3  3  3  -5   5 0
+      0   5  -5  3  3  3  3  -5   5 0
+      0  20  -5 15  3  3 15  -5  20 0
+      0 -20 -40 -5 -5 -5 -5 -40 -20 0
+      0 120 -20 20  5  5 20 -20 120 0
+      0   0   0  0  0  0  0   0   0 0 ))
+  (let1 opp (opponent player)
+    ))
+
+
+;;
+;; eval-fnを利用して最も有効な手を取得する
+;;
+(define (maximizer eval-fn)
+  (^ (player board)
+     (let* ((moves (legal-moves player board))
+            ;; moveに移動した場合のスコアの一覧を作成
+            (scores (map (^(move)
+                           (eval-fn player (make-move move player (copy-board board))))
+                         moves))
+            (best (apply max scores)))
+       (ref moves (list-index (pa$ = best) scores)))))
 
 
 ;;
