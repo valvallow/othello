@@ -4,6 +4,7 @@
 (use srfi-1)
 (use srfi-43)
 (use srfi-27)
+(use file.util)
 
 ;;
 ;; -11 -10 -9
@@ -301,16 +302,6 @@
   ((maximizer count-difference) player board))
 
 
-;; ==========================================================
-
-(define (usage)
-  (print)
-  (exit 0))
-
-(define (print-strategies)
-  (print)
-  (exit 0))
-
 (define strategies
   `((human . ,human)
     (random . ,random-strategy )
@@ -319,16 +310,27 @@
 (define (get-strategy str)
   (and str (assoc-ref strategies (string->symbol str))))
 
+;; ==========================================================
+
+(define (usage path)
+  (let1 cmd (values-ref (decompose-path path) 1)
+    (print "usage : " cmd " [options] [args]")
+    (exit 0)))
+
+(define (print-strategies)
+  (print strategies)
+  (exit 0))
+
 (define (main args)
   (let-args (cdr args)
-      ((help "h|help" => usage)
+      ((help "h|help" => (pa$ usage (car args)))
        (list-strategy "l|list" => print-strategies)
        (first "f|first")
        (enemy "e|enemy=s")
        (self "s|self=s")
        (else (opt . _)
              (print "Unknown option : " opt)
-             (usage))
+             (usage (car args)))
        . rest)
     (let* ((enemy-strategy (or (get-strategy enemy) random-strategy))
            (player-strategy (or (get-strategy self) human))
