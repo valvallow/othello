@@ -297,8 +297,17 @@
       0 -20 -40 -5 -5 -5 -5 -40 -20 0
       0 120 -20 20  5  5 20 -20 120 0
       0   0   0  0  0  0  0   0   0 0 ))
-  (let1 opp (opponent player)
-    ))
+  ((maximizer (^(player board)
+                (let1 opp (opponent player)
+                  (fold (^(i sum)
+                          (let ((cur (bref board i))
+                                (weight (ref *weights* i)))
+                            (cond ((= cur player)(+ weight sum))
+                                  ((= cur opp)(+ (- weight) sum))
+                                  (else sum))))
+                        0
+                        all-squares))))
+   player board))
 
 
 ;;
@@ -332,7 +341,8 @@
 (define strategies
   `((human . ,human)
     (random . ,random-strategy)
-    (maximize-difference . ,maximize-difference)))
+    (maximize-difference . ,maximize-difference)
+    (weighted-squares . ,weighted-squares)))
 
 ;;
 ;; 戦略のリストから戦略を取得する
