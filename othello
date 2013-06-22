@@ -236,7 +236,7 @@
        all-squares))
 
 ;;
-;;
+;; 戦略を利用して次の手を実行する
 ;;
 (define (get-move! strategy player board print?)
   (when print?
@@ -255,6 +255,30 @@
         (begin
           (warn "Illegal move: ~d" move)
           (get-move! strategy player board print?)))))
+
+;;
+;; 有効な手を取得する
+;;
+(define (legal-moves player board)
+  (fold (^(move acc)
+          (if (legal? move player board)
+              (cons move acc)
+              acc))
+        '()
+        all-squares))
+
+;;
+;; eval-fnを利用して最も有効な手を取得する
+;;
+(define (maximizer eval-fn)
+  (^ (player board)
+     (let* ((moves (legal-moves player board))
+            ;; moveに移動した場合のスコアの一覧を作成
+            (scores (map (^(move)
+                           (eval-fn player (make-move move player (copy-board board))))
+                         moves))
+            (best (apply max scores)))
+       (ref moves (list-index (pa$ = best) scores)))))
 
 ;; ==========================================================
 
@@ -310,30 +334,7 @@
    player board))
 
 
-;;
-;; eval-fnを利用して最も有効な手を取得する
-;;
-(define (maximizer eval-fn)
-  (^ (player board)
-     (let* ((moves (legal-moves player board))
-            ;; moveに移動した場合のスコアの一覧を作成
-            (scores (map (^(move)
-                           (eval-fn player (make-move move player (copy-board board))))
-                         moves))
-            (best (apply max scores)))
-       (ref moves (list-index (pa$ = best) scores)))))
-
-
-;;
-;; 有効な手を取得する
-;;
-(define (legal-moves player board)
-  (fold (^(move acc)
-          (if (legal? move player board)
-              (cons move acc)
-              acc))
-        '()
-        all-squares))
+;; ==========================================================
 
 ;;
 ;; 戦略のリスト
@@ -349,8 +350,6 @@
 ;;
 (define (get-strategy str)
   (and str (assoc-ref strategies (string->symbol str))))
-
-;; ==========================================================
 
 (define (usage path)
   (let1 cmd (values-ref (decompose-path path) 1)
